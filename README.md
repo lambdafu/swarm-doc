@@ -158,7 +158,9 @@ Example: `*set#mice@1cDKT+joe>mouse$joe` This operation adds the element `mouse$
 
 ### Frames
 
-RON frames are sequences of operations.
+RON frames are non-empty, ordered sequences of operations, delimited by
+terminators. Each op in a frame is either part of a chunk or a raw op. The last
+op in a frame is terminated with `.`. Frames are processed atomically by reducers.
 
 #### Terminators
 
@@ -167,10 +169,17 @@ Operations in frames also have an optional terminator.
 | Terminator   | Symbol | Description                                  | Examples  |
 | ------------ | ------ | -------------------------------------------- | --------- |
 | Raw op       | `;`    | Raw operation                                |           |
-| Query header | `?`    |                                              |           |
-| Frame header | `!`    |                                              |           |
+| Query header | `?`    | Header Op.                                   |           |
+| Chunk header | `!`    | Starts a chunk inside a frame. Header Op.    |           |
 | Reduced op   | `,`    | Optional                                     |           |
 | Frame end    | `.`    | Required for streaming transports (e.g. TCP) | `'Swarm'` |
+
+
+#### Chunks
+
+Chunks are sequences of ops inside a Frame. A chunk starts with a Header Op
+that is terminated with `?` or `!` and ends before the first Op not terminated
+by `,`. All Ops of a Chunk have the same object and type UUIDs.
 
 ## CRDT
 
