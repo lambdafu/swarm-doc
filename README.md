@@ -4,6 +4,14 @@ Newest revelations from the Gritzko Research Center! :D
 We are trying to nail down the latest version of Swarm, because we
 think it's a great idea.
 
+## Table of Contents
+
+1. [Introduction](#introduction)
+2. [RON](#ron)
+3. [CRDT](#crdt)
+4. [SwarmDB](#swarmdb)
+5. [Applications](#applications)
+
 ## Existing Material
 
 ### Repositories by Gritzko
@@ -25,3 +33,13 @@ think it's a great idea.
 * [CRDT Research](https://github.com/olebedev/research-CRDT) Olebedev CRDT Research
 * [todo app](https://github.com/olebedev/todo), [chat app](https://github.com/olebedev/chat), [mice](https://github.com/olebedev/mice) Example apps for swarmdb
 * [docker-rocksdb](https://github.com/olebedev/docker-rocksdb)
+
+## Introduction
+
+## RON
+
+## CRDT
+
+## SwarmDB
+
+## Applications
