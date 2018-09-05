@@ -11,6 +11,7 @@ think it's a great idea.
 3. [CRDT](#crdt)
 4. [SwarmDB](#swarmdb)
 5. [Applications](#applications)
+6. [Terms and Definitions](#terms-and-definitions)
 
 ### Existing Material
 
@@ -243,3 +244,12 @@ If the update is a single raw op, it's first converted to a frame. A artificial
 frame header op is generated with the same type, object and event UUIDs. The
 location UUID empty. The header ops start and end versions are equal to the
 event UUID.
+
+## Terms and Definitions
+
+<dl>
+  <dt>RON</dt>
+  <dd>Replicated Object Notation, the low-level data format for synchronization in Swarm.</dd>
+  <dt>Op</dt>
+  <dd>Short for Operation. A data structure in RON describing mutations on objects and other parts of the data-format.</dd>
+</dl>
