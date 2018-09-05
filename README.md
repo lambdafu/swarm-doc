@@ -295,4 +295,14 @@ event UUID.
   <dd>Replicated Object Notation, the low-level data format for synchronization in Swarm.</dd>
   <dt>Op</dt>
   <dd>Short for Operation. A data structure in RON describing mutations on objects and other parts of the data-format.</dd>
+  <dt>UUID</dt>
+  <dd>Universially Unique Identification. A is a 128 bit value</dd>
+  <dt>Spec</dt>
+  <dd>A 4-tuple of UUIDs. Type, event, object and location.</dd>
+  <dt>Atom</dt>
+  <dd>A number, a string or a UUID.</dd>
+  <dt>Frame</dt>
+  <dd>A non-empty, ordered sequence of ops, each with an optional terminator. Ops inside a frame are either part of a chunk or a raw op.</dd>
+  <dt>Chunk</dt>
+  <dd>A non-empty, ordered sequence of terminated ops. The first op is terminated with `!` or `?`, followed by zero or more ops terminated with `,`. The chunks end before the first ops not terminated by `,`.</dd>
 </dl>
