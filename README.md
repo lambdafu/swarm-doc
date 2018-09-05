@@ -12,9 +12,9 @@ think it's a great idea.
 4. [SwarmDB](#swarmdb)
 5. [Applications](#applications)
 
-## Existing Material
+### Existing Material
 
-### Repositories by Gritzko
+#### Repositories by Gritzko
 
 * [RON](https://github.com/gritzko/ron) Most recent RON implementation in Go.
 * [Swarm](https://github.com/gritzko/swarm) Swarm client in Javascript.
@@ -57,6 +57,120 @@ with linear logs.  Please keep this in mind when reading older
 documentation and code.
 
 ## RON
+
+Replicated object notation (RON) is the language in which object
+states and mutations, as well as all other parts of the Swarm
+protocol, are expressed in Swarm.  RON consists (solely!) of a series
+of UUIDs (128-bit numbers), but the order of UUIDs matter, and there
+are many different kinds of UUIDs, depending on the context.
+
+UUIDs provide sufficient metadata to object and their mutations to
+allow the implementation of CRDTs in a network of peers.
+
+RON features two different wire formats: _text_ and _binary_.  Both
+offer several ways of compression, adding to the complexity.  We will
+handle compression later, but note here that efficient compression is
+what makes RON and Swarm practical.  Compression reduces the metadata
+overhead.
+
+One particular combination of four UUIDs makes up an _operation_
+(short: ops) with one UUID each for the _type_, _object_, _event_ and
+_value_.  Several operations make up the state or mutation of an
+object, we call this a _frame_.
+
+Special kinds of RON ops are used for protocol handshakes and frame
+headers (metadata for frames).  These degenerate operations have
+special meaning, and often omit some of the metadata that is usually
+included in an operation (for example, a handshake query does not have
+a timestamp).
+
+
+### UUIDs
+
+UUIDs are 128 bit (16 byte), and semi-compatible with RFC4122.  One goal of RON is to allow for a human-readable, compact text representation, so RON uses Base64 encoding for 2\*60 = 2\*(10 Base64 characters) of the 128 bits.  The remaining 2\*4 bits specify the _scheme_ and _variety_ of the UUID (basically, a simple type and subtype mechanism).
+
+    vvvv ....  .... ....  .... ....  .... ....
+    .... ....  .... ....  .... ....  .... ....
+    00ss ....  .... ....  .... ....  .... ....
+    .... ....  .... ....  .... ....  .... ....
+
+The text representation in RON uses special punctuation characters for the scheme (one of `$`, `%`, `+`, `-`) and variety (`x/` where `x` is a Base64 character from `0123456789ABCDEF`), and Base64 encoding for the remaining bits.  Due to compression, a zero variety (`0/`) and trailing zeros are omitted.  If the second part of a name (scheme `00` = `$`) is all zero, the punctuation for the scheme is omitted as well (`db` is equal to `db$` and `db00000000$0000000000`, but `42%` can not be compressed further).
+
+To read the text representation of an UUID, you have to look at the middle punctuation character first (one of `$%+-`). If there is none, you can assume `$` (it's a name UUID).  Then you can look at the variety (the character before the `/`), if any (usually, the variety is `0/` and omitted).
+
+The table below shows an example for a non-zero variety that is used to differentiate integral numbers (`0/`) and hashes (`A/`).
+
+| Scheme  | Value | Symbol | Description            | Examples                                                   |
+| ------- | ----- | ------ | ---------------------- | ---------------------------------------------------------- |
+| Name    | `00`  | `$`    | Hardcoded Name         | `db`, `lww`, `mouse$joe`                                   |
+| Number  | `01`  | `%`    | Number or 120-bit hash | `42%`,`3%5`(for 2-tuple `3, 5`),`A/k3R9w_2F8w%Le~6dDScsw\` |
+| Event   | `10`  | `+`    | Event timestamp        | `1cDKT+joe`                                                |
+| Derived | `11`  | `-`    | ?                      | `1cDKT-joe`                                                |
+
+Note: The compression for numbers seems to be wrong, see <https://github.com/gritzko/ron/issues/35>
+
+#### Scheme 00: Human Readable Name
+
+##### Variety 0000: Transcendental / hardcoded name or scoped name
+
+These UUIDs are used as global identifiers, for example `db` in the handshake protocol, for error messages such as `BadHShake`, or to indicate CRDT data types such as `lww` or `set`.
+
+If only the first 60 bits are used, the name is global and can be up to 10 Base64 characters long.  The scheme `$` is then omitted.  Otherwise, the name is a _scoped name_ local to a client (`mouse$joe` is the `mouse` name in the `joe` replica).
+
+##### Other varieties
+
+The other varieties can be used for various items such as ISBN, EAN-13 bar codes, SI units, etc.
+
+#### Scheme 01: Numbers
+
+Decimal numbers up to 9999999999 (10 digits) can be directly represented as a UUID.  The number 42 is represented as `42%` (uncompressed: `0/42`)
+
+A non-zero variety indicates a random or hash number with 120 bit.
+
+#### Scheme 10: Event
+
+Events are the powerhorse of operational CRDT.  The first half of the UUID specifies a timestamp.  The second half the origin of the timestamp.  Together, the UUID specifies a Lampson-timestamp (local clock).
+
+The variety further clarifies the type of clock (Base64 calendar `MMDHmS`, Logical, Epoch).
+
+#### Scheme 11: Derived
+
+Same as event, but different.  FIXME: Specify difference and give practical example.
+
+### Atoms
+
+Mutations that set a value include an atom for that value.  RON defines the following atoms: Integer, float, string, or UUID.
+
+| Atom    | Symbol | Description                      | Examples                   |
+| ------- | ------ | -------------------------------- | -------------------------- |
+| UUID    | `>`    | RON UUID                         | `>mouse$joe`, `>1cDKT+joe` |
+| Integer | `=`    | Integer number                   | `=42`, `=-3`, `=+1`        |
+| Float   | `^`    | Floating point number            | `^3.14`                    |
+| String  | `'`    | String enclosed in single quotes | `'Swarm'`                  |
+
+### Operations
+
+Four UUIDs and a (possibly empty) sequence of atoms together make up an operation. The four UUIDs are Type (`*`), Object (`#`), Event (`@`), Field (`:`) and Value (one of `>`, `=`, `^`, `''`).  In the text representation, the symbol is used as a prefix to the UUID.
+
+Example: `*lww#mouse$joe@1cDKT+joe:x=99` This operation is for the object `mouse$joe` of LWW type.  It sets the value for the field `x` to `99`.  The event UUID uniquely identifies the operation, so that at any replica the merge operation can succeed idempotently.
+
+Example: `*set#mice@1cDKT+joe>mouse$joe` This operation adds the element `mouse$joe` to the set `mice`.  The field UUID is "don't care".
+
+### Frames
+
+RON frames are sequences of operations.
+
+#### Terminators
+
+Operations in frames also have an optional terminator.
+
+| Terminator   | Symbol | Description                                  | Examples  |
+| ------------ | ------ | -------------------------------------------- | --------- |
+| Raw op       | `;`    | Raw operation                                |           |
+| Query header | `?`    |                                              |           |
+| Frame header | `!`    |                                              |           |
+| Reduced op   | `,`    | Optional                                     |           |
+| Frame end    | `.`    | Required for streaming transports (e.g. TCP) | `'Swarm'` |
 
 ## CRDT
 
