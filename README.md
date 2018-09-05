@@ -177,7 +177,12 @@ The UUID of the op itself. The UUID is either a time stamp, zero, never or error
 
 #### Location
 
+UUID of a field or sub object. Field name for LWW objects, :w
+
+
 #### Trailing Atoms
+
+Additional arguments for the event.
 
 ### Frames
 
