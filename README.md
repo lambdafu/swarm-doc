@@ -138,6 +138,12 @@ The variety further clarifies the type of clock (Base64 calendar `MMDHmS`, Logic
 
 Same as event, but different.  FIXME: Specify difference and give practical example.
 
+#### Special UUIDs
+
+- `0` zero.
+- `~` never. Time stamp UUID.
+- `~~~~~~~~~~`. Error UUID. Processing this UUIDs always fails.
+
 ### Atoms
 
 Mutations that set a value include an atom for that value.  RON defines the following atoms: Integer, float, string, or UUID.
@@ -149,13 +155,29 @@ Mutations that set a value include an atom for that value.  RON defines the foll
 | Float   | `^`    | Floating point number            | `^3.14`                    |
 | String  | `'`    | String enclosed in single quotes | `'Swarm'`                  |
 
-### Operations
+### Ops
 
 Four UUIDs and a (possibly empty) sequence of atoms together make up an operation. The four UUIDs are Type (`*`), Object (`#`), Event (`@`), Field (`:`) and Value (one of `>`, `=`, `^`, `''`).  In the text representation, the symbol is used as a prefix to the UUID.
 
 Example: `*lww#mouse$joe@1cDKT+joe:x=99` This operation is for the object `mouse$joe` of LWW type.  It sets the value for the field `x` to `99`.  The event UUID uniquely identifies the operation, so that at any replica the merge operation can succeed idempotently.
 
 Example: `*set#mice@1cDKT+joe>mouse$joe` This operation adds the element `mouse$joe` to the set `mice`.  The field UUID is "don't care".
+
+#### Type
+
+The type of an Op decides what reducer to use when merging states. Each type corresponds with a CRDT.
+
+#### Object
+
+The UUID of the object the op applies to.
+
+#### Event
+
+The UUID of the op itself. The UUID is either a time stamp, zero, never or error.
+
+#### Location
+
+#### Trailing Atoms
 
 ### Frames
 
@@ -195,6 +217,27 @@ ordered.
 
 More details can be found in the seminal paper on the topic: [A comprehensive study of Convergent and Commutative
 Replicated Data Types](https://hal.inria.fr/file/index/docid/555588/filename/techreport.pdf) (Shapiro et al.).
+
+Reducer functions consume a state Frame and an update and produce a new state Frame.
+
+```
+// state and update are frames
+state <- reduce(state, update)
+```
+
+Each reduce function has the following properties.
+
+- *Associative*, meaning applying a change frame as a whole or each op
+  incrementally produces the same final state frame. Mathematically
+  $redude(state, update) = reduce(reduce(state, update[0..n]), update[n..])$
+
+- *Cummutative*, meaning the order in which independent update frames are
+  reduce into the state does not matter. Mathematically $reduce(reduce(state,
+  update1), update2) = reduce(reduce(state, update2), update1)$
+
+- *Idempotent*, meaning reapplying an update Frame does not change the result.
+  Mathematically $reduce(state, update) = reduce(reduce(state, update),
+  update)$
 
 The following data types are defined by Swarm.
 
