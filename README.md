@@ -93,3 +93,20 @@ Sets
 ## SwarmDB
 
 ## Applications
+
+### Synchronizing State
+
+Synchronize state by exchanging RON frames. Each peers state is a collection of CRDT instances (objects) consisting of a RON frame (state frame) and an read-only, internal representation (e.g. C++ object).
+
+The root of each state change is a RON frame `update`. The state frame `state` and the `update` are combined using the type depend reducer function, yielding a new state frame. The reducer is selected by inspecting the header op of the update frame. The type UUID of the header op determines the reducer. The header ops object UUID determines which state frame to use.
+
+Each frame is processed atomically. If the type or object is unknown or the reducer fails, the frame is discarded as a whole and no change takes place.
+
+```
+header := getHeaderOp(update)
+reduce := TYPES[header[0]]
+new_state := reduce(OBJECTS[header[2]], update)
+OBJECTS[header[2]] <- new_state
+```
+
+If the update is a single raw op, it's first converted to a frame. A artificial frame header op is generated with the same type, object and event UUIDs. The location UUID empty. The header ops start and end versions are equal to the event UUID.
