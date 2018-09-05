@@ -15,6 +15,18 @@ think it's a great idea.
 
 ### Existing Material
 
+#### Presentations
+
+* [ReactiveConf 2017 - Victor Grishchenko: RON: Replicated Object Notation](https://www.youtube.com/watch?v=0Xx9kkTMi10)
+* [What do Reactive apps react to? | Victor Grishchenko | Reactive 2015](https://www.youtube.com/watch?v=LDBkoixNgKs)
+* [Replicated Object Notation (RON): like JSON, but for data sync by Victor Grishchenko (@gritzko)](https://www.youtube.com/watch?v=fb6UnKVkwVA) (React Vienna)
+* [Slides](https://de.slideshare.net/gritzko/presentations) Gritzko on SlideShare
+
+#### Publications
+
+* Victor Grishchenko: [“Citrea and Swarm: partially ordered op logs in the browser”](http://www.st.ewi.tudelft.nl/victor/polo.pdf), short paper at PaPEC'14
+* V. Grishchenko [“Deep hypertext with embedded revision control implemented in regular expressions”](http://www.st.ewi.tudelft.nl/victor/articles/ctre.pdf), (ACM) WIKISYM 2010, Gdansk, Poland, [slides](http://www.st.ewi.tudelft.nl/victor/articles/wikisym.html)
+
 #### Repositories by Gritzko
 
 * [RON](https://github.com/gritzko/ron) Most recent RON implementation in Go.
@@ -28,12 +40,13 @@ think it's a great idea.
 * [Rocksdb](https://github.com/gritzko/rocksdb) Fork of Rocksdb with patches for swarmdb.
 * [TODO MVC](https://github.com/gritzko/todomvc-swarm) Example Swarm+React project
 
-### Repositories by Olebedev
+#### Repositories by Olebedev
 
 * [Swarm](https://github.com/olebedev/swarm) Olebedev's fork of the JS Swarm client.
 * [CRDT Research](https://github.com/olebedev/research-CRDT) Olebedev CRDT Research
 * [todo app](https://github.com/olebedev/todo), [chat app](https://github.com/olebedev/chat), [mice](https://github.com/olebedev/mice) Example apps for swarmdb
 * [docker-rocksdb](https://github.com/olebedev/docker-rocksdb)
+
 
 ## Introduction
 
@@ -41,22 +54,50 @@ Swarm is a protocol for distributed data synchronization by [Victor Grishchenko]
 
 * [Conflict-free replicated data types](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) (CRDTs) to synchronize state automatically without merge conflicts.  Swarm favors operation based CRDT and guarantees [causal consistency](https://en.wikipedia.org/wiki/Causal_consistency).
 * [RON](https://github.com/gritzko/ron) (Replicated Object Notation), a serialization format for distributed data.  Swarm supports Set, LWW, Causal Set, and RGA (Replicated Growable Array).
-* Swarm Protocol, which specifies how clients and servers talk to each
-  other, and how state is actually synchronized across the network.
+* Partially-Ordered Logs and the Swarm Protocol, which specifies how
+  clients and servers talk to each other, and how state is actually
+  synchronized across the network.
 
 Additional contributions are:
 
 * A GraphQL/React component to integrate Swarm-based objects into a web application.
 
+### Motivation
+
+Web and mobile applications have become increasingly data heavy but
+rely on slow, bandwidth-constrained and unreliable wireless networks,
+while users have many devices and expect instant synchronization. On
+the other hand, persistent storage has become ubiquitous, which makes
+caching inexpensive.[🔗](https://de.slideshare.net/gritzko/swarm-34428560)
+
+The advantages of caching are: No more stalls due to data loading,
+possibility for offline use, and intermittent network connectivity
+does not cause problems. This improves the user experience. But,
+caching also has challenges: Data can be mutated in multiple locations
+and invalidation is no longer effective, so versioning and
+synchronization becomes necessary.[🔗](https://de.slideshare.net/gritzko/swarm-34428560)
+
+Collaborative offline-editing systems, such as [operational
+transforms](https://en.wikipedia.org/wiki/Operational_transformation),
+usually favor availability and partition tolerance over consistency
+([AP-systems](https://en.wikipedia.org/wiki/CAP_theorem)), and Swarm
+is no exception. By using partially ordered log and CRDTs, Swarm
+achieves reliablible synchronization with low implementation costs. By
+using the RON format, it does so efficiently.[🔗](http://swarmdb.net/articles/on-kreps/)
+
 ### History
 
 Swarm started in 2012 as part of the Yandex Live Letters project.
 Early versions were fully P2P, which creates scalability problems due
-to per-object logs and version vectors.  Since v1.0, Swarm improves
-performance by restricting the network structure to a spanning tree
-with linear logs.  Please keep this in mind when reading older
-documentation and code.
+to per-object logs and version
+vectors.[🔗](https://www.datastax.com/dev/blog/why-cassandra-doesnt-need-vector-clocks)
+Since v1.0, Swarm improves performance by restricting the network
+structure to a spanning tree with linear logs.  Please keep this in
+mind when reading older documentation and code.
 
+Early precursors to Swarm were
+[Citrea](https://github.com/gritzko/citrea-model) a CRDT-based
+collaborative editor engine of letters.yandex.ru (2012).
 ## RON
 
 Replicated object notation (RON) is the language in which object
@@ -220,9 +261,6 @@ taking the last known state, and applying all subsequent operations
 using a _reducer_ function.  In Swarm, all operations are causally
 ordered.
 
-More details can be found in the seminal paper on the topic: [A comprehensive study of Convergent and Commutative
-Replicated Data Types](https://hal.inria.fr/file/index/docid/555588/filename/techreport.pdf) (Shapiro et al.).
-
 Reducer functions consume a state Frame and an update and produce a new state Frame.
 
 ```
@@ -261,6 +299,21 @@ within the clock skew.
 ### Set
 
 Sets
+
+### Background on CRDTs
+
+CRDTs support real-time background synchronization, versioned data,
+offline work, caching, prefetching and conflict-free merge for
+concurrent
+changes.[🔗](https://de.slideshare.net/gritzko/swarm-34428560)
+
+Other applications using CRDTs are:
+* [Cassandra](http://cassandra.apache.org/),
+* [Riak](http://basho.com/posts/technical/distributed-data-types-riak-2-0/).
+
+More details can be found in the seminal paper on the topic: [A comprehensive study of Convergent and Commutative
+Replicated Data Types](https://hal.inria.fr/file/index/docid/555588/filename/techreport.pdf) (Shapiro et al.).
+
 
 ## SwarmDB
 
@@ -311,3 +364,14 @@ event UUID.
   <dt>Chunk</dt>
   <dd>A non-empty, ordered sequence of terminated ops. The first op is terminated with `!` or `?`, followed by zero or more ops terminated with `,`. The chunks end before the first ops not terminated by `,`.</dd>
 </dl>
+
+## Notes
+
+Fragments of knowledge that have not been incorporated in the above text.
+
+* Causal Trees for collaborative real-time editing can offer a
+  replacement for OT (operational transforms) that is offline-first,
+  perfectly cachable, runs in the browser (JS, contentEditable), can
+  provide authorship attribution and change detection. For Swarm,
+  initially developed for
+  letters.yandex.ru.[🔗](https://de.slideshare.net/gritzko/swarm-34428560)
