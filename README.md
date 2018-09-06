@@ -18,8 +18,8 @@ think it's a great idea.
 #### Presentations
 
 * [ReactiveConf 2017 - Victor Grishchenko: RON: Replicated Object Notation](https://www.youtube.com/watch?v=0Xx9kkTMi10)
-* [What do Reactive apps react to? | Victor Grishchenko | Reactive 2015](https://www.youtube.com/watch?v=LDBkoixNgKs)
 * [Replicated Object Notation (RON): like JSON, but for data sync by Victor Grishchenko (@gritzko)](https://www.youtube.com/watch?v=fb6UnKVkwVA) (React Vienna)
+* [What do Reactive apps react to? | Victor Grishchenko | Reactive 2015](https://www.youtube.com/watch?v=LDBkoixNgKs)
 * [Slides](https://de.slideshare.net/gritzko/presentations) Gritzko on SlideShare
 
 #### Publications
@@ -62,6 +62,15 @@ Additional contributions are:
 
 * A GraphQL/React component to integrate Swarm-based objects into a web application.
 
+Swarm combines many technologies to make these happen:[🔗](http://swarmdb.net/articles/todomvc/)
+
+* synchronize in real-time (WebSocket),
+* cache data at the client (WebStorage),
+* load and work completely offline (Application Cache).
+
+Swarm can even synchronize multiple browser tabs locally by webstorage
+events[🔗](http://swarmdb.net/articles/todomvc/).
+
 ### Motivation
 
 Web and mobile applications have become increasingly data heavy but
@@ -82,22 +91,32 @@ transforms](https://en.wikipedia.org/wiki/Operational_transformation),
 usually favor availability and partition tolerance over consistency
 ([AP-systems](https://en.wikipedia.org/wiki/CAP_theorem)), and Swarm
 is no exception. By using partially ordered log and CRDTs, Swarm
-achieves reliablible synchronization with low implementation costs. By
+achieves reliable synchronization with low implementation effort. By
 using the RON format, it does so efficiently.[🔗](http://swarmdb.net/articles/on-kreps/)
+
+Collaborative applications aside, users today have many devices
+connected intermittently by unreliable wireless networks, so
+synchronization issues arise even with a single user and a single
+application.[🔗](http://swarmdb.net/articles/todomvc/)
+
+Many software problems can be attributed to the difficulty of mixing
+asynchronous communication and synchronous logic. And offline use as
+well as intermittent network availability are just (extreme) special
+cases of asynchronous communication. Swarm is built to be highly
+tolerant to asynchronous environments from the
+start.[🔗](http://swarmdb.net/articles/offline-is-async/)
 
 ### History
 
-Swarm started in 2012 as part of the Yandex Live Letters project.
-Early versions were fully P2P, which creates scalability problems due
-to per-object logs and version
+Swarm started in 2012 as part of the Yandex Live Letters project
+([Citrea](https://github.com/gritzko/citrea-model)). Early versions
+were fully P2P, which creates scalability problems due to per-object
+logs and version
 vectors.[🔗](https://www.datastax.com/dev/blog/why-cassandra-doesnt-need-vector-clocks)
 Since v1.0, Swarm improves performance by restricting the network
 structure to a spanning tree with linear logs.  Please keep this in
 mind when reading older documentation and code.
 
-Early precursors to Swarm were
-[Citrea](https://github.com/gritzko/citrea-model) a CRDT-based
-collaborative editor engine of letters.yandex.ru (2012).
 ## RON
 
 Replicated object notation (RON) is the language in which object
@@ -171,9 +190,23 @@ A non-zero variety indicates a random or hash number with 120 bit.
 
 #### Scheme 10: Event
 
-Events are the powerhorse of operational CRDT.  The first half of the UUID specifies a timestamp.  The second half the origin of the timestamp.  Together, the UUID specifies a Lampson-timestamp (local clock).
+Events are the powerhorse of operational CRDT.  The first half of the
+UUID specifies a timestamp.  The second half the origin of the
+timestamp.  Together, the UUID specifies a Lampson timestamp (local
+clock).
 
-The variety further clarifies the type of clock (Base64 calendar `MMDHmS`, Logical, Epoch).
+The variety further clarifies the type of clock (Base64 calendar
+`MMDHmS`, Logical, Epoch). Logical timestamps are essentially a
+counter that is incremented irregardless of wall clock.  Base64
+calendar time is somewhat human-readable in the RON text encoding.
+And finally, epoch is the number of seconds since Jan 1st, 1970.
+
+The origin is usually a username, or a session or replica identifier.
+
+By using calendar time and a username, for example, these particular
+Lampson timestamps also provide some additional useful information
+that at the very least provides some context, for example when
+inspecting the data during debugging or analyzing the protocol stream.[🔗](http://swarmdb.net/articles/lamport/)
 
 #### Scheme 11: Derived
 
@@ -375,3 +408,30 @@ Fragments of knowledge that have not been incorporated in the above text.
   provide authorship attribution and change detection. For Swarm,
   initially developed for
   letters.yandex.ru.[🔗](https://de.slideshare.net/gritzko/swarm-34428560)
+
+## FAQ
+
+### Are CRDTs really that powerful? What does it even mean to "merge states"?
+
+Obviously, merge can not be semantically correct in many cases. Take a
+collaborative editor for an example. There is no way for the machine
+to merge your ideas with the other guy's ideas to produce a valid
+text. It does a technically correct merge of symbol sequences, that's
+it.
+
+Every system has its limits and the wisdom is not to bore deeper than
+those limits allow.[🔗](http://swarmdb.net/articles/todomvc/#comment-2098959815)
+
+### Does Swarm accumulate cruft in the logs?
+
+Pruning is possible in CTs once we define "replica rot time". For
+example, any replica that was offline for more than a week is
+considered "rotten", so either its new ops have to be reapplied anew
+(to an updated replica) or it has to be
+dropped.[🔗](http://swarmdb.net/articles/todomvc/#comment-2098959815)
+
+Log pruning/compaction only affects tombstones and overwritten
+values. While the past history is garbage collected, the current state
+stays intact.[🔗](http://swarmdb.net/articles/todomvc/#comment-2103303260)
+
+
