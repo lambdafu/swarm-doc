@@ -15,14 +15,14 @@ We are trying to nail down the latest version of Swarm, because we think it's a 
 
 ## Introduction
 
-Swarm is a reactive data synchronization library and middleware by [Victor Grishchenko](https://github.com/gritzko). Swarm synchronizes your application's model automatically, in real time.
+Swarm is a reactive data synchronization library and middleware by [Victor Grishchenko](https://github.com/gritzko). Swarm synchronizes your application's model  automatically, in real time.
 
 ### Overview
 
 Swarm is based on three core concepts:
 
 -   [Conflict-free replicated data types](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) (CRDTs) to synchronize state automatically without merge conflicts.  Swarm favors operation based CRDT and guarantees [causal consistency](https://en.wikipedia.org/wiki/Causal_consistency). Swarm supports Set, LWW, Causal Set, and RGA (Replicated Growable Array).
--   [RON](https://github.com/gritzko/ron) (Replicated Object Notation), a format for _distributed live data_.
+-   [RON](https://github.com/gritzko/ron) (Replicated Object Notation), a data format for _distributed live data_.
 -   Partially-Ordered Logs and the Swarm Protocol, which specifies how clients and servers talk to each other, and how state is actually synchronized across the network.
 
 Additional contributions are:
@@ -52,15 +52,15 @@ mind when reading older documentation and code.
 
 ## RON
 
-Replicated object notation (RON) is the language in which object states and mutations, as well as all other parts of the Swarm protocol, are expressed in Swarm.  RON consists mainly of a series of UUIDs (128-bit numbers), but the order of UUIDs matter, and there are many different kinds of UUIDs, depending on the context.
+Replicated object notation (RON) is the language in which object states and mutations, as well as all other parts of the Swarm protocol, are expressed in Swarm. RON consists mainly of a series of UUIDs (128-bit numbers) and atoms (UUIDs, integers, floats and strings). There are many different kinds of UUIDs, depending on the context.
 
-UUIDs provide sufficient metadata to object and their mutations to allow the implementation of CRDTs in a network of peers.
+UUIDs provide sufficient metadata to objects and their mutations to allow the implementation of CRDTs in a network of peers.
 
 RON features two different wire formats: _text_ and _binary_. Both offer several ways of compression, adding to the complexity. We will handle compression later, but note here that efficient compression is what makes RON and Swarm practical. Compression reduces the metadata overhead.
 
-One particular combination of four UUIDs makes up an _operation_ (short: ops) with one UUID each for the _type_, _object_, _event_ and _value_.  Several operations make up the state or mutation of an object, we call this a _frame_.
+One particular combination of four UUIDs makes up an _operation_ (short: ops) with one UUID each for the _type_, _object_, _event_ and _location_. Several operations make up the state or mutation of an object, we call this a _frame_.
 
-Special kinds of RON ops are used for protocol handshakes and frame headers (metadata for frames).  These degenerate operations have special meaning, and often omit some of the metadata that is usually included in an operation (for example, a handshake query does not have a timestamp).
+Special kinds of RON ops are used for protocol handshakes and frame headers (metadata for frames). These operations have special meaning, and often omit some of the metadata that is usually included in an operation (for example, a handshake query does not have a timestamp).
 
 ### UUIDs
 
@@ -288,6 +288,39 @@ If the update is a single raw op, it's first converted to a frame. A artificial
 frame header op is generated with the same type, object and event UUIDs. The
 location UUID empty. The header ops start and end versions are equal to the
 event UUID.
+
+### handshake
+
+The initial handshake for a database `default` without authentication looks like this:
+
+    *db #default @+ ?
+    *#@ !
+
+The same with authentication atoms:
+
+    *db #default @+ ?
+    *#@ !
+    *#@ auth1 auth2 auth3 ... ,
+
+The response will include a `SEEN` timestamp, a `REPLICA` client ID, and options.
+
+    *db #default$REPLICA @SEEN+swarm ?
+    *#@ =1540652128143! // wtf?
+
+    *#@ :optkey1 optval1,
+    *#@ :optkey2 optval2,
+    *#@ :optkey3 optval3,
+    ...
+
+To reconnect to a database, we pass the `SEEN` timestamp of the last seen event and the `REPLICA` client ID to the handshake:
+
+    *db #default @SEEN+REPLICA ?
+    *#@ !
+
+In case of an unknown database error, the response will be:
+
+    *db #test @~ :DBUnknown$~~~~~~~~~~ ?
+    *#@: !
 
 ## Terms and Definitions
 
