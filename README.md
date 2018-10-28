@@ -262,6 +262,56 @@ Replicated Data Types](https://hal.inria.fr/file/index/docid/555588/filename/tec
 
 ## SwarmDB
 
+SwarmDB implements peers in a swarm system, to which other peers and replicas can connect. The SwarmDB protocol also allows replicas to delegate to sub-replicas. To avoid version vectors, the network structure is not arbitrary. Instead, the following assumptions are made:
+
+-   There is a spanning tree of peers, where each peer sees all changes to all objects. Each peer keeps its own local linear log of all changes as they come in (arrival order).
+-   The spanning tree is extended one level to cover all replicas. Each replica subscribes to a subset of objects on its peer. The peer in turn receives all changes made by the replica.
+-   The spanning tree can further be extended by replicas that fork their connection to sub-replicas, providing subscriptions to some objects known by the replica. The sub-replica in turn provides all changes made by it to the replica.
+
+Communication is in general two-way over websockets. Each half of a connection can be in two different modes: Log-based or subscription-based. Log-based connections unconditionally receive all changes for all objects, while subscription-based connections only receive changes for subscribed objects. Again the three scenarios from above:
+
+-   A peer-to-peer connection will have both sides of the communication channel in log-based mode, so each peer receives all changes seen by the other peer.
+-   A peer-to-replica connection will use both modes: The communication from the peer to the replica will be subscription-based, so the replica only sees changes for objects it is interested in. But communication from the replica to the peer will be log-based, so the peer sees all changes made by the replica to any object.
+-   A replica-to-replica connection will be similar to the peer-to-replica connection, however, it will usually be initiated by the parent replica receiving all changes from the sub-replica, so directions in the handshake are opposite of that in the two cases.
+
+(The only case missing here is that of a communication channel with two subscription-based sides. I don't know of any application for that.)
+
+### handshake
+
+The initial handshake for a database `default` without authentication looks like this:
+
+    *db #default @+ ?
+    *#@ !
+
+TODO: :ref? outbound, :ref! inbound
+
+The same with authentication atoms:
+
+    *db #default @+ ?
+    *#@ ! auth1 auth2 auth3 ... ,
+
+The response will include a `SEEN` timestamp, a `REPLICA` client ID, and options.
+
+    *db #default$REPLICA @SEEN+swarm ?
+    *#@ =1540652128143! // wtf?
+
+    *#@ :optkey1 optval1,
+    *#@ :optkey2 optval2,
+    *#@ :optkey3 optval3,
+    ...
+
+To reconnect to a database, we pass the `SEEN` timestamp of the last seen event and the `REPLICA` client ID to the handshake:
+
+    *db #default @SEEN+REPLICA ?
+    *#@ !
+
+#### Errors
+
+In case of an unknown database error, the response will be:
+
+    *db #test @~ :DBUnknown$~~~~~~~~~~ ?
+    *#@: !
+
 ## Applications
 
 ### Synchronizing State
@@ -288,39 +338,6 @@ If the update is a single raw op, it's first converted to a frame. A artificial
 frame header op is generated with the same type, object and event UUIDs. The
 location UUID empty. The header ops start and end versions are equal to the
 event UUID.
-
-### handshake
-
-The initial handshake for a database `default` without authentication looks like this:
-
-    *db #default @+ ?
-    *#@ !
-
-The same with authentication atoms:
-
-    *db #default @+ ?
-    *#@ !
-    *#@ auth1 auth2 auth3 ... ,
-
-The response will include a `SEEN` timestamp, a `REPLICA` client ID, and options.
-
-    *db #default$REPLICA @SEEN+swarm ?
-    *#@ =1540652128143! // wtf?
-
-    *#@ :optkey1 optval1,
-    *#@ :optkey2 optval2,
-    *#@ :optkey3 optval3,
-    ...
-
-To reconnect to a database, we pass the `SEEN` timestamp of the last seen event and the `REPLICA` client ID to the handshake:
-
-    *db #default @SEEN+REPLICA ?
-    *#@ !
-
-In case of an unknown database error, the response will be:
-
-    *db #test @~ :DBUnknown$~~~~~~~~~~ ?
-    *#@: !
 
 ## Terms and Definitions
 
