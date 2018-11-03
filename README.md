@@ -276,16 +276,16 @@ Communication is in general two-way over websockets. Each half of a connection c
 
 (The only case missing here is that of a communication channel with two subscription-based sides. I don't know of any application for that.)
 
-### handshake
+### Handshake
 
 The initial handshake for a database `default` without authentication looks like this:
 
     *db #default @+ ?
     *#@ !
 
-TODO: :ref? outbound, :ref! inbound
+The two ops set up bidirectional communication with the default modes for a replica connecting to a peer, requesting subscription based data from the peer and offering a full log to the peer.
 
-The same with authentication atoms:
+The request can include authentication data in value atoms:
 
     *db #default @+ ?
     *#@ ! auth1 auth2 auth3 ... ,
@@ -305,12 +305,75 @@ To reconnect to a database, we pass the `SEEN` timestamp of the last seen event 
     *db #default @SEEN+REPLICA ?
     *#@ !
 
-#### Errors
+#### Communication modes
 
-In case of an unknown database error, the response will be:
+The communication mode (subscription based, log based) for each half of the channel can be specified explicitely by using different schemes in the field part of the op. The query op ('?') specifies the read part (communication from recipient to sender), and the header op (`!`) specifies the write part (communication from sender to recipient). Note that the reply should reverse the communication modes, because direction of the message has reversed.
+
+-   `:0+` subscription based
+-   `:0%` log based
+-   `:0` default mode (`:0+? :0%!` for the request, and `:0%? :0+!` for the reply)
+
+### Subscriptions
+
+To receive subscription based data for an object from its peer, a replica sends
+the object ID without any other metadata with a query and header terminator:
+
+    #object ?
+
+In this case, the connection is read-only, and the server will only respond
+with an acknowledgement (header op):
+
+    #object !
+
+If the replica wants to send updates to the object, it has
+to include the corresponding mode:
+
+    #object ?
+    !
+
+The server will respond with a query and header op to acknowledge both
+modes of the connection.
+
+A replica might already know the state of an object at a certain timestamp.
+It can re-subscribe for any later updates by passing the seen timestamp in
+the request:
+
+    #object @seen ?
+    !
+
+Note that the server may send a reduced version of the changes, or the complete
+current state. In any case it will send all ops necessary, such that the replica
+will have the complete current state after merging the received ops into the
+state as described by its seen timestamp.
+
+For example:
+
+    > #mice@1f21s+1f21r9?!
+    < *lww #mice @1f21t+1f21r9 ?
+      *    #     @             !
+                 @(s,
+                 @(t              :x=2
+
+### Creating objects
+
+Creating objects is combined with subscribing to them:
+
+    *lww #obj @)4+UserAlice ?
+    !
+    :one=1
+
+### Errors
+
+When connecting with a handshake, in case of an unknown database error,
+the response will be:
 
     *db #test @~ :DBUnknown$~~~~~~~~~~ ?
     *#@: !
+
+When updating an object, in case of a timestamp too far into the future,
+the response will be:
+
+    *db @~ :TimeCrime$~~~~~~~~~~ !
 
 ## Applications
 
