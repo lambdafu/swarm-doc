@@ -197,6 +197,13 @@ Chunks are sequences of ops inside a Frame. A chunk starts with a Header Op
 that is terminated with `?` or `!` and ends before the first Op not terminated
 by `,`. All Ops of a Chunk have the same object and type UUIDs.
 
+### Compression
+
+RON includes a custom compression algorithm. It is slightly more
+efficient than generic compression algorithms such as ZIP, but more
+importantly, it is possible to iterate over compressed frames in
+memory, while only uncompressing the current operation.
+
 ## CRDT
 
 To avoid merge conflicts when synchronizing states across the network,
@@ -354,6 +361,10 @@ For example:
                  @(s,
                  @(t              :x=2
 
+To unsubscribe, send a timestamp of "never" (`~`):
+
+    *lww #obj @~ ?
+
 ### Creating objects
 
 Creating objects is combined with subscribing to them:
@@ -453,6 +464,9 @@ dropped.[🔗](http://swarmdb.net/articles/todomvc/#comment-2098959815)
 Log pruning/compaction only affects tombstones and overwritten
 values. While the past history is garbage collected, the current state
 stays intact.[🔗](http://swarmdb.net/articles/todomvc/#comment-2103303260)
+
+The maximum offline time is called the horizon.  Ops older than that
+are causally stable.
 
 ## Resources
 
